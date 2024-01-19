@@ -33,8 +33,8 @@ def select_capture_area():
     class TransparentFrame(wx.Frame):
         def __init__(self):
             super(TransparentFrame, self).__init__(None, wx.ID_ANY, style=wx.FRAME_SHAPED)
-            self.SetTransparent(150)  # Set transparency
-            self.Maximize()  # Maximize the frame to cover the entire screen
+            self.SetTransparent(150) 
+            self.Maximize()
 
             self.start_pos = None
             self.end_pos = None
@@ -101,11 +101,10 @@ window_height = int(screen_height * 0.3)
 root.geometry(f"{window_width}x{window_height}")
 
 beginning_pull = None
-output_file_path = "pull_count.txt"  # Default output file path
+output_file_path = "pull_count.txt"
 
 pull_counter_active = False
 
-# Functions
 def check_for_pull(image):
     global sim_value
     result = cv2.matchTemplate(image, beginning_pull, cv2.TM_CCOEFF_NORMED)
@@ -115,13 +114,12 @@ def check_for_pull(image):
     '''if max_val > sim_value: 
         display_screenshot(image)'''
 
-    return max_val  # Return the similarity score
+    return max_val
 
 def display_screenshot(image):
     screenshot_window = tk.Toplevel(root)
     screenshot_window.title("Screenshot Capture")
 
-    # Convert the BGR image to RGB
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     img = Image.fromarray(image_rgb)
     img = ImageTk.PhotoImage(img)
@@ -162,7 +160,6 @@ def start_stop_counting():
     global pull_counter_active
     if beginning_pull is not None and output_file_path:
         if not pull_counter_active:
-            # Start counting
             if 'cx' in globals() and 'cy' in globals() and 'cw' in globals() and 'ch' in globals():
                 pull_counter_active = True
                 start_counting_thread = threading.Thread(target=count_pulls)

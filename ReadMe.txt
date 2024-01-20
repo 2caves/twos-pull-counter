@@ -1,6 +1,6 @@
 SETUP:
 
-1. Extract all files in 'TwosPullCounterV3.zip' to a folder
+1. Extract all files in 'TwosPullCounterV4.zip' to a folder
 
 2. You will need a cropped reference image of 'Start!'
 (The contained reference image may work well, depending on screen resolution and specific fight)

@@ -92,7 +92,7 @@ def select_capture_area():
 root = tk.Tk()
 root.title("Two's Pull Counter")
 root.configure(bg='#1d1d23')
-root.iconbitmap(r"B:\twowtf32.ico")
+root.iconbitmap(r"twowtf32.ico")
 
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()

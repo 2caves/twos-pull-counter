@@ -2,18 +2,18 @@ SETUP:
 
 1. Extract all files in 'TwosPullCounterV4.zip' to a folder
 
-2. You will need a cropped reference image of 'Start!'
-(The contained reference image may work well, depending on screen resolution and specific fight)
+2. You will need a cropped reference image of either 'Engage' or 'Start!' - I recommend 'Engage' for good consistency across different fights/arenas.
+(The contained reference images may work well, depending on screen resolution and specific fight)
 
 3. Run 'TwosPullCounter.exe'
 
-4. Load 'Start!' reference image from folder
+4. Load reference image from folder - saved to config.ini when application closes
 
-5. Choose output path and name for text file
+5. Choose output path and name for text file - saved to config.ini when application closes
 
-6. Select screen region to monitor (where 'Start!' appears on your screen)
+6. Select screen region to monitor (where either 'Engage' or 'Start!' appears on your screen) - also saved to config.ini
 
-7. Press start
+7. Press Start to begin checking for pulls!
 
 
 ---------------------------------------------------------------------------

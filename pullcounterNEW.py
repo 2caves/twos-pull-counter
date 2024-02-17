@@ -8,6 +8,7 @@ from tkinter import messagebox, filedialog
 import threading
 import wx
 import configparser
+import os.path
 
 def save_config():
     config = configparser.ConfigParser()
@@ -138,23 +139,31 @@ output_file_path = "pull_count.txt"
 pull_counter_active = False
 
 def check_for_pull(image):
-    global sim_value
-    global beginning_pull
+    global sim_value, beginning_pull
     if beginning_pull is None:
         messagebox.showwarning("Warning", "Reference image not loaded")
+        pull_counter_active = False
+        update_button_label()
         return 0
     else:
-        reference_image = cv2.imread(beginning_pull)
-        if reference_image is None:
-            messagebox.showwarning("Warning", "Failed to load reference image")
+        try:
+            reference_image = cv2.imread(beginning_pull)
+            if reference_image is None:
+                messagebox.showwarning("Warning", "Failed to load reference image")
+                pull_counter_active = False
+                update_button_label()
+                return 0
+            result = cv2.matchTemplate(image, reference_image, cv2.TM_CCOEFF_NORMED)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+            # Display the screenshot in a new window
+            '''if max_val > sim_value:'''
+            '''display_screenshot(image)'''
+            return max_val
+        except cv2.error as e:
+            messagebox.showwarning("Warning", f"Failed to load reference image: {e}")
+            pull_counter_active = False
+            update_button_label()
             return 0
-        result = cv2.matchTemplate(image, reference_image, cv2.TM_CCOEFF_NORMED)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-        # Display the screenshot in a new window
-        '''if max_val > sim_value:'''
-        '''display_screenshot(image)'''
-        return max_val
-
 
 def display_screenshot(image):
     screenshot_window = tk.Toplevel(root)
@@ -214,6 +223,9 @@ def count_pulls():
     update_button_label()
 
     while pull_counter_active:
+        if not os.path.exists(beginning_pull):
+            pull_counter_active = False
+            messagebox.showwarning("Warning", f"Please ensure reference image file path exists")
         if beginning_pull is not None and output_file_path and 'cx' in globals() and 'cy' in globals() and 'cw' in globals() and 'ch' in globals():
             screenshot = pyautogui.screenshot(region=(cx, cy, cw, ch))
             frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)

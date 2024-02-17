@@ -7,18 +7,51 @@ import tkinter as tk
 from tkinter import messagebox, filedialog
 import threading
 import wx
+import configparser
 
-def on_closing():
-    global pull_counter_active
-    if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
-        pull_counter_active = False
-        root.destroy()
+def save_config():
+    config = configparser.ConfigParser()
+    config['DEFAULT'] = {
+        'reference_image_path': ref_image_label.cget("text"),
+        'output_file_path': output_file_path,
+        'capture_area_coordinates': capture_area_label.cget("text")
+    }
+    with open('config.ini', 'w') as configfile:
+        config.write(configfile)
+
+def load_config():
+    global beginning_pull, cx, cy, cw, ch
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    if 'DEFAULT' in config:
+        ref_image_path = config['DEFAULT'].get('reference_image_path', '')
+        if ref_image_path:
+            beginning_pull = ref_image_path
+            ref_image_label.config(text=ref_image_path)
+        else:
+            beginning_pull = None
+            ref_image_label.config(text='Reference Image: Not Loaded')
+
+        output_file_label.config(text=config['DEFAULT'].get('output_file_path', ''))
+        capture_area_label.config(text=config['DEFAULT'].get('capture_area_coordinates', ''))
+        capture_area_text = capture_area_label.cget("text")
+        print("Capture Area Text:", capture_area_text)
+        try:
+            cx, cy, cw, ch = map(int, capture_area_text.split(','))
+            print("cx, cy, cw, ch:", cx, cy, cw, ch)
+        except ValueError:
+            print("Error parsing capture area coordinates")
+    else:
+        ref_image_label.config(text='')
+        output_file_label.config(text='')
+        capture_area_label.config(text='')
+
 
 # Ref image handling
 def select_reference_image():
     global beginning_pull
     file_path = filedialog.askopenfilename()
-    beginning_pull = cv2.imread(file_path)
+    beginning_pull = file_path
     ref_image_label.config(text=f"{file_path}")
 
 # Output file handling
@@ -102,19 +135,26 @@ root.geometry(f"{window_width}x{window_height}")
 
 beginning_pull = None
 output_file_path = "pull_count.txt"
-
 pull_counter_active = False
 
 def check_for_pull(image):
     global sim_value
-    result = cv2.matchTemplate(image, beginning_pull, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    
-    # Display the screenshot in a new window
-    '''if max_val > sim_value: 
-        display_screenshot(image)'''
+    global beginning_pull
+    if beginning_pull is None:
+        messagebox.showwarning("Warning", "Reference image not loaded")
+        return 0
+    else:
+        reference_image = cv2.imread(beginning_pull)
+        if reference_image is None:
+            messagebox.showwarning("Warning", "Failed to load reference image")
+            return 0
+        result = cv2.matchTemplate(image, reference_image, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+        # Display the screenshot in a new window
+        '''if max_val > sim_value:'''
+        '''display_screenshot(image)'''
+        return max_val
 
-    return max_val
 
 def display_screenshot(image):
     screenshot_window = tk.Toplevel(root)
@@ -186,16 +226,22 @@ def count_pulls():
                 pulls += 1
                 pulls_label.config(text=f"Pulls: {pulls}")
                 update_pull_count_file(pulls)
-            time.sleep(0.5)
+            time.sleep(1)
         else:
             pull_counter_active = False
-
 
 def reset_pull_count():
     global pulls
     if messagebox.askokcancel("Reset Pulls?", "Are you sure you want to reset your pulls?"):
         pulls_label.config(text=f"Pulls: 0")
         update_pull_count_file(0)
+
+def on_closing():
+    global pull_counter_active
+    if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
+        pull_counter_active = False
+        save_config()
+        root.destroy()
 
 select_ref_image_button = tk.Button(root, text="Select Reference Image", command=select_reference_image)
 select_ref_image_button.grid(row=0, column=0, pady=5, padx=10, sticky='w')
@@ -227,6 +273,8 @@ reset_pulls_button.grid(row=5, column=0, pady=5, padx=10, sticky='nsew')
 
 pulls_label = tk.Label(root, text="Pulls: 0", font=("Arial", 24))
 pulls_label.grid(row=4, column=3, pady=20, padx=10, sticky='nsew')
+
+load_config()
 
 root.protocol("WM_DELETE_WINDOW", on_closing)
 root.mainloop()

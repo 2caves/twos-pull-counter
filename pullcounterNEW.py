@@ -16,7 +16,8 @@ def save_config():
         'reference_image_path': ref_image_label.cget("text"),
         'output_file_path': output_file_path,
         'capture_area_coordinates': capture_area_label.cget("text"),
-        'similarity percentage': similarity_slider.get()
+        'similarity percentage': similarity_slider.get(),
+        'last_pull_count': pulls
     }
     try:
         with open('config.ini', 'w') as configfile:
@@ -25,7 +26,7 @@ def save_config():
         messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
 
 def load_config():
-    global beginning_pull, cx, cy, cw, ch
+    global beginning_pull, cx, cy, cw, ch, custom_count
     config = configparser.ConfigParser()
     try:
         config.read('config.ini')
@@ -46,6 +47,10 @@ def load_config():
         output_file_label.config(text=config['DEFAULT'].get('output_file_path', ''))
         capture_area_label.config(text=config['DEFAULT'].get('capture_area_coordinates', ''))
         capture_area_text = capture_area_label.cget("text")
+        if pulls_label:
+            pulls_label.config(text="Pulls: " + config['DEFAULT'].get('last_pull_count', ''))
+            custom_count =pulls_label.cget('text')
+            custom_count = int(custom_count[7:])
         similarity_percentage = config['DEFAULT'].get('similarity percentage', '')
         if similarity_percentage:
             similarity_slider.set(int(similarity_percentage))
@@ -150,7 +155,6 @@ root.geometry(f"{window_width}x{window_height}")
 beginning_pull = None
 output_file_path = "pull_count.txt"
 pull_counter_active = False
-custom_count = 0
 
 def scale_reference_image(reference_image, cx, cy, cw, ch):
     capture_area_width = cw

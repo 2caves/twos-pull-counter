@@ -2,7 +2,7 @@
 
 ## SETUP:
 
-1. If you have already used the pull counter and/or own a config file, place `TwosPullCounter.exe` in the same folder. It will otherwise automatically create both the necessary `pull_count.txt` file and config file in the folder it is being opened from.
+1. If you have already used the pull counter and/or own a config file, place `TwosPullCounter.exe` in the same folder. It will otherwise automatically create both the necessary `pull_count.txt` file and config.ini file in the folder it is being opened from.
 
 2. You will need a cropped reference image of either 'Engage' or 'Start!' - I recommend 'Engage' for good consistency across different fights/arenas. (The contained reference images MAY work well, depending on your screen resolution and specific fight)
 

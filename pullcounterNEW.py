@@ -9,8 +9,12 @@ import threading
 import wx
 import configparser
 import os.path
+import sys
+
+pulls=0
 
 def save_config():
+    global pulls
     config = configparser.ConfigParser()
     config['DEFAULT'] = {
         'reference_image_path': ref_image_label.cget("text"),
@@ -26,7 +30,7 @@ def save_config():
         messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
 
 def load_config():
-    global beginning_pull, cx, cy, cw, ch, custom_count
+    global beginning_pull, cx, cy, cw, ch, custom_count, pulls
     config = configparser.ConfigParser()
     try:
         config.read('config.ini')
@@ -47,10 +51,19 @@ def load_config():
         output_file_label.config(text=config['DEFAULT'].get('output_file_path', ''))
         capture_area_label.config(text=config['DEFAULT'].get('capture_area_coordinates', ''))
         capture_area_text = capture_area_label.cget("text")
-        if pulls_label:
+
+        last_pull_count = config['DEFAULT'].get('last_pull_count', None)
+        if last_pull_count is not None:
+            try:
+                pulls = int(last_pull_count)
+            except ValueError:
+                pulls = 0
             pulls_label.config(text="Pulls: " + config['DEFAULT'].get('last_pull_count', ''))
-            custom_count =pulls_label.cget('text')
-            custom_count = int(custom_count[7:])
+            custom_count = pulls
+        else:
+            pulls = 0
+            custom_count = 0
+
         similarity_percentage = config['DEFAULT'].get('similarity percentage', '')
         if similarity_percentage:
             similarity_slider.set(int(similarity_percentage))
@@ -140,11 +153,21 @@ def select_capture_area():
     capture_app = CaptureApp()
     capture_app.MainLoop()
 
+# .ico relative path
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 # Initialize GUI
 root = tk.Tk()
 root.title("Two's Pull Counter")
 root.configure(bg='#1d1d23')
-root.iconbitmap(r"twowtf32.ico")
+icon_path=resource_path('twowtf32.ico')
+root.iconbitmap(icon_path)
 
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
@@ -256,7 +279,7 @@ def set_custom_pull_count():
         update_pull_count_file(pulls)
 
 def start_stop_counting():
-    global pull_counter_active
+    global pull_counter_active, pulls
     if beginning_pull is not None and output_file_path:
         if not pull_counter_active:
             if 'cx' in globals() and 'cy' in globals() and 'cw' in globals() and 'ch' in globals():
@@ -303,7 +326,7 @@ def reset_pull_count():
 
 
 def on_closing():
-    global pull_counter_active
+    global pull_counter_active, pulls
     if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
         pull_counter_active = False
         save_config()

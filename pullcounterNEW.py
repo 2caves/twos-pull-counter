@@ -4,7 +4,7 @@ import pyautogui
 import numpy as np
 import time
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, simpledialog
 import threading
 import wx
 import configparser
@@ -15,19 +15,29 @@ def save_config():
     config['DEFAULT'] = {
         'reference_image_path': ref_image_label.cget("text"),
         'output_file_path': output_file_path,
-        'capture_area_coordinates': capture_area_label.cget("text")
+        'capture_area_coordinates': capture_area_label.cget("text"),
+        'similarity percentage': similarity_slider.get()
     }
-    with open('config.ini', 'w') as configfile:
-        config.write(configfile)
+    try:
+        with open('config.ini', 'w') as configfile:
+            config.write(configfile)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to save configuration: {str(e)}")
 
 def load_config():
     global beginning_pull, cx, cy, cw, ch
     config = configparser.ConfigParser()
-    config.read('config.ini')
+    try:
+        config.read('config.ini')
+    except configparser.Error as e:
+        messagebox.showerror("Error", f"Failed to load configuration: {str(e)}")
+        return
+
     if 'DEFAULT' in config:
         ref_image_path = config['DEFAULT'].get('reference_image_path', '')
         if ref_image_path:
             beginning_pull = ref_image_path
+            print('Ref image loaded from config')
             ref_image_label.config(text=ref_image_path)
         else:
             beginning_pull = None
@@ -36,6 +46,9 @@ def load_config():
         output_file_label.config(text=config['DEFAULT'].get('output_file_path', ''))
         capture_area_label.config(text=config['DEFAULT'].get('capture_area_coordinates', ''))
         capture_area_text = capture_area_label.cget("text")
+        similarity_percentage = config['DEFAULT'].get('similarity percentage', '')
+        if similarity_percentage:
+            similarity_slider.set(int(similarity_percentage))
         print("Capture Area Text:", capture_area_text)
         try:
             cx, cy, cw, ch = map(int, capture_area_text.split(','))
@@ -46,7 +59,7 @@ def load_config():
         ref_image_label.config(text='')
         output_file_label.config(text='')
         capture_area_label.config(text='')
-
+        similarity_slider.set(int(40))
 
 # Ref image handling
 def select_reference_image():
@@ -137,9 +150,30 @@ root.geometry(f"{window_width}x{window_height}")
 beginning_pull = None
 output_file_path = "pull_count.txt"
 pull_counter_active = False
+custom_count = 0
+
+def scale_reference_image(reference_image, cx, cy, cw, ch):
+    capture_area_width = cw
+    capture_area_height = ch
+
+    reference_image_width = reference_image.shape[1]
+    reference_image_height = reference_image.shape[0]
+
+    # Check if the reference image dimensions are smaller than the capture area
+    if reference_image_width > capture_area_width or reference_image_height > capture_area_height:
+        scale_x = capture_area_width / reference_image_width
+        scale_y = capture_area_height / reference_image_height
+
+        scale_factor = min(scale_x, scale_y)
+
+        # Resize
+        scaled_reference_image = cv2.resize(reference_image, None, fx=scale_factor, fy=scale_factor)
+        return scaled_reference_image
+    else:
+        return reference_image
 
 def check_for_pull(image):
-    global sim_value, beginning_pull
+    global sim_value, beginning_pull, pull_counter_active, scaled_reference_image
     if beginning_pull is None:
         messagebox.showwarning("Warning", "Reference image not loaded")
         pull_counter_active = False
@@ -153,18 +187,22 @@ def check_for_pull(image):
                 pull_counter_active = False
                 update_button_label()
                 return 0
-            result = cv2.matchTemplate(image, reference_image, cv2.TM_CCOEFF_NORMED)
+            
+            scaled_reference_image = scale_reference_image(reference_image, cx, cy, cw, ch)
+            
+            print(f"cx,cy,cw,ch at matching: {cx,cy,cw,ch}")
+            print(f"image shape:{image.shape}")
+            print(f"reference image shape:{scaled_reference_image.shape}")
+            
+            result = cv2.matchTemplate(image, scaled_reference_image, cv2.TM_CCOEFF_NORMED)
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-            # Display the screenshot in a new window
-            '''if max_val > sim_value:'''
-            '''display_screenshot(image)'''
             return max_val
-        except cv2.error as e:
-            messagebox.showwarning("Warning", f"Failed to load reference image: {e}")
+        except Exception as e:
+            messagebox.showwarning("Warning", f"Error loading reference image: {str(e)}")
             pull_counter_active = False
             update_button_label()
             return 0
-
+        
 def display_screenshot(image):
     screenshot_window = tk.Toplevel(root)
     screenshot_window.title("Screenshot Capture")
@@ -205,6 +243,14 @@ def update_button_label():
         message = "\n".join(missing_requirements)
         messagebox.showwarning("Warning", f"Please fulfill the following requirements:\n\n{message}")
 
+def set_custom_pull_count():
+    global pulls, custom_count
+    custom_count = simpledialog.askinteger("Set Pull Count", "Enter the number of pulls:", minvalue=0)
+    if custom_count is not None:
+        pulls = custom_count
+        pulls_label.config(text=f"Pulls: {pulls}")
+        update_pull_count_file(pulls)
+
 def start_stop_counting():
     global pull_counter_active
     if beginning_pull is not None and output_file_path:
@@ -218,7 +264,7 @@ def start_stop_counting():
     update_button_label()
 
 def count_pulls():
-    global pull_counter_active, pulls, sim_value
+    global pull_counter_active, pulls, sim_value, custom_count
     pulls = 0
     update_button_label()
 
@@ -235,7 +281,9 @@ def count_pulls():
             similarity = check_for_pull(frame)
             if similarity > sim_value:
                 time.sleep(3)
+                pulls = custom_count
                 pulls += 1
+                custom_count += 1
                 pulls_label.config(text=f"Pulls: {pulls}")
                 update_pull_count_file(pulls)
             time.sleep(1)
@@ -243,10 +291,12 @@ def count_pulls():
             pull_counter_active = False
 
 def reset_pull_count():
-    global pulls
+    global pulls, custom_count
     if messagebox.askokcancel("Reset Pulls?", "Are you sure you want to reset your pulls?"):
         pulls_label.config(text=f"Pulls: 0")
+        custom_count = 0
         update_pull_count_file(0)
+
 
 def on_closing():
     global pull_counter_active
@@ -274,7 +324,8 @@ capture_area_label = tk.Label(root, text="Capture Area: Not Defined", bg='#1d1d2
 capture_area_label.grid(row=2, column=1, pady=5, padx=10, sticky='w')
 
 similarity_slider = tk.Scale(root, from_=0, to=100, orient='horizontal', label='Similarity (%)', resolution='1')
-similarity_slider.set(40)
+if similarity_slider is None:
+    similarity_slider.set(40)
 similarity_slider.grid(row=3, column=0, pady=5, padx=10, sticky='w')
 
 start_stop_button = tk.Button(root, text="Start", command=start_stop_counting, width=12, height=2, font=("Arial", 12))
@@ -282,6 +333,9 @@ start_stop_button.grid(row=4, column=0, pady=10, padx=10, sticky='nsew')
 
 reset_pulls_button = tk.Button(root, text="Reset Pull Count", command=reset_pull_count)
 reset_pulls_button.grid(row=5, column=0, pady=5, padx=10, sticky='nsew')
+
+set_custom_pull_button = tk.Button(root, text="Set Custom Pull Count", command=set_custom_pull_count)
+set_custom_pull_button.grid(row=5, column=3, padx=10, sticky='nsew')
 
 pulls_label = tk.Label(root, text="Pulls: 0", font=("Arial", 24))
 pulls_label.grid(row=4, column=3, pady=20, padx=10, sticky='nsew')
